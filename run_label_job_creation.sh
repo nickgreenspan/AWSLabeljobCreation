@@ -1,6 +1,7 @@
 #!/bin/bash
 
-scriptpath = "$neurocaasrootdir/ncap_utils"
+execpath="$0"
+scriptpath="$neurocaasrootdir/ncap_utils"
 
 source "$scriptpath/workflow.sh"
 
@@ -10,8 +11,4 @@ source "$scriptpath/transfer.sh"
 ## Set up error logging.
 errorlog
 
-python3 createLabelJobGeneral.py "$bucketname" "$dataname" "$inputpath" "$configname" "$configpath" "$processdir" "$groupdir"
-
-
-
-
+python3 "../AWSLabeljobCreation/createLabelJobGeneral.py" "$bucketname" "$dataname" "$inputpath" "$configname" "$configpath" "$processdir" "$groupdir"
