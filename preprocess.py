@@ -11,7 +11,7 @@ s3client = boto3.client('s3', region_name = 'us-east-1')
 s3 = boto3.resource('s3', region_name = 'us-east-1')
 
 def preprocess_job(video_bucket, video_path, video_name, input_data_bucket, lab_group_name, numframes, anntype, labels, datasetname, shortintruct, fullinstruct):
-	#newbuc = s3.create_bucket(ACL = 'public-read-write', Bucket=input_data_bucket) #if bucket doens't already exist
+	#newbuc = s3.create_bucket(ACL = 'public-read-write', Bucket=input_data_bucket) #if bucket doesn't already exist
 	video_base = video_name.split('.', 1)[0] #gets the filename without extension
 	s3.Bucket(video_bucket).download_file(video_path, video_name)
 	cap = cv2.VideoCapture(video_name)

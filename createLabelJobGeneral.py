@@ -85,27 +85,8 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 	file1.close()
 	s3.Bucket(input_data_bucket).upload_file('labeling_urls.txt', lab_group_name + '/' + output_dir +  '/labeling_urls.txt')
 
-
 	print("https://neurocaasdomain.auth.us-east-1.amazoncognito.com/login?response_type=code&client_id=" + clientId + "&redirect_uri=https://"+ labeluri + "/oauth2/idpresponse")
 	print("labeluri: " + labeluri)
-
-# users = [['Nicktestname', 'nicholasg101@gmail.com'], ['Nicktest2', 'nrg2148@columbia.edu']] sample format for users list
-# users1 = [['Nicktest2', 'nrg2148@columbia.edu']]
-# users2 = [['Nicktestname', 'nicholasg101@gmail.com']]
-# labels = ['cat', 'dog', 'fish'] #not used
-# jobname = "GeneralTestAWS14"
-# video_bucket = 'sagemakerneurocaastest'
-# #video_bucket = 'bucket-video-test-1'
-# video_path = 'username/inputs/'
-# #video_path = ''
-# video_name = 'reachingvideo1'
-# #video_name = 'vid_view_1'
-# input_data_bucket = 'nickneurocaastest2'
-# anntype = "Keypoint"
-# numframes = 100 #not used
-# datasetname = 'dataset200'
-# shortintruct = "please label"
-# fullinstruct = "please label now"
 
 preprocess_job(video_bucket, video_path, video_name, input_data_bucket, lab_group_name, numframes, annotationtype, task_labels, datasetname, shortintruct, fullinstruct)
 createLabelJob(users, jobname, input_data_bucket, datasetname, annotationtype)
