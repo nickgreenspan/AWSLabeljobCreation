@@ -39,7 +39,7 @@ clientId = '7cujg3m8o3sh6cqg39lcbc1ool'
 #labeluri = 'https://pgvx2rzogw.labeling.us-east-1.sagemaker.aws'
 
 def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #You must use the same clientId for all of your workteams, so all workteams must be part of the same userpool
-	group = client.create_group(GroupName = (lab_group_name + "4"), UserPoolId = upid) #note groupname requirements
+	group = client.create_group(GroupName = (lab_group_name + "5"), UserPoolId = upid) #note groupname requirements
 	for user in users:
 		try: 
 			userinfo = client.admin_create_user(UserPoolId=upid, Username = user[0], UserAttributes=[{'Name': 'email', 'Value': user[1]}]) #once the users are added to the userpool they don't need to be added again
@@ -48,7 +48,7 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 		client.admin_add_user_to_group(UserPoolId = upid, Username = user[0], GroupName = group['Group']['GroupName'])
 
 	#You cannot create more than 25 work teams in an account and region
-	workteam = smclient.create_workteam(WorkteamName= "Team4" + lab_group_name, MemberDefinitions=[{'CognitoMemberDefinition': {'UserPool': upid, 'UserGroup': group['Group']['GroupName'], 'ClientId': clientId}}], Description='Team' + lab_group_name)
+	workteam = smclient.create_workteam(WorkteamName= "Team5" + lab_group_name, MemberDefinitions=[{'CognitoMemberDefinition': {'UserPool': upid, 'UserGroup': group['Group']['GroupName'], 'ClientId': clientId}}], Description='Team' + lab_group_name)
 	humantaskuiarn = ""
 	prehumantasklambdaarn = ""
 	annotationconsolidationconfigarn = ""
@@ -57,7 +57,7 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 		prehumantasklambdaarn = 'arn:aws:lambda:us-east-1:432418664414:function:PRE-VideoObjectTracking'
 		annotationconsolidationconfigarn = 'arn:aws:lambda:us-east-1:432418664414:function:ACS-VideoObjectTracking'
 
-	job = smclient.create_labeling_job(LabelingJobName= (jobname+ "4"), LabelAttributeName= "Label-ref", #could change labelattributename
+	job = smclient.create_labeling_job(LabelingJobName= (jobname+ "5"), LabelAttributeName= "Label-ref", #could change labelattributename
 		InputConfig={'DataSource': {'S3DataSource': {'ManifestS3Uri' : "s3://"+ input_data_bucket + "/" + lab_group_name + "/inputs/" + datasetname + ".manifest.json"}}}, 
 		OutputConfig= {'S3OutputPath': ("s3://"+ input_data_bucket + "/" + lab_group_name + "/" + output_dir)}, 
 		RoleArn = "arn:aws:iam::739988523141:role/labeljobcreator", #predefined role
@@ -66,7 +66,7 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 			'WorkteamArn': workteam['WorkteamArn'],
 			'UiConfig': {'HumanTaskUiArn': humantaskuiarn}, #need to be changed depending on label job type
 	        'PreHumanTaskLambdaArn': prehumantasklambdaarn,
-	        'TaskTitle': (jobname+"4"),
+	        'TaskTitle': (jobname+"5"),
 	        'TaskDescription': "Label the data", #can change if necessary
 	        'NumberOfHumanWorkersPerDataObject': 1, #can change this
 	        'TaskTimeLimitInSeconds' : 172800,
