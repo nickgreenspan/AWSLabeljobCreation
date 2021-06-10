@@ -30,16 +30,15 @@ def preprocess_job(video_bucket, video_path, video_name, input_data_bucket, lab_
 		ret, frame = cap.read()
 		if (ret != True):
 		    break
-		if (frameId % math.floor(frameRate) == 0):
-			hasFrame, imageBytes = cv2.imencode(".jpg", frame)
-			if(hasFrame):
-				s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + video_base + '/frame_' + str(f) + '.jpeg'), Body=imageBytes.tobytes())
-				frame_dict = {}
-				frame_dict["frame-no"] = f + 1
-				frame_dict["unix-timestamp"] = 2 #doesn't matter
-				frame_dict["frame"] = ("frame_" + str(f) + '.jpeg')
-				frames.append(frame_dict)
-				f += 1		
+		hasFrame, imageBytes = cv2.imencode(".jpg", frame)
+		if(hasFrame):
+			s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + video_base + '/frame_' + str(f) + '.jpeg'), Body=imageBytes.tobytes())
+			frame_dict = {}
+			frame_dict["frame-no"] = f + 1
+			frame_dict["unix-timestamp"] = 2 #doesn't matter
+			frame_dict["frame"] = ("frame_" + str(f) + '.jpeg')
+			frames.append(frame_dict)
+			f += 1		
 	cap.release()
 
 	sequence_1["frames"] = frames
