@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
 
 #testing purposes ###############################
-trial_num = 6
+trial_num = 251
 #################################################
 
 client = boto3.client('cognito-idp', region_name = 'us-east-1')
@@ -79,7 +79,7 @@ model_config = {
 with open('config.yaml', 'w') as f: #creating dlc config file
 	yaml.dump(model_config, f)
 
-s3.bucket(target_bucket).upload_file('config.yaml', 'data/config.yaml')
+s3.Bucket(target_bucket).upload_file('config.yaml', 'data/config.yaml')
 upid = 'us-east-1_ZxGaQUSI2'
 clientId = '7cujg3m8o3sh6cqg39lcbc1ool'
 #labeluri = 'https://pgvx2rzogw.labeling.us-east-1.sagemaker.aws'

@@ -14,7 +14,7 @@ def preprocess_job(video_bucket, video_path, video_name, input_data_bucket, targ
 	#newbuc = s3.create_bucket(ACL = 'public-read-write', Bucket=input_data_bucket) #if bucket doesn't already exist
 	video_base = video_name.split('.', 1)[0] #gets the filename without extension
 	s3.Bucket(video_bucket).download_file(video_path, video_name)
-	s3.copy_object(Bucket = target_bucket, CopySource = {"Bucket" : video_bucket, "Key": video_path}, Key = "videos/"+ video_name) #copies the original video to the output location
+	s3client.copy_object(Bucket = target_bucket, CopySource = {"Bucket" : video_bucket, "Key": video_path}, Key = "data/videos/"+ video_name) #copies the original video to the output location
 	cap = cv2.VideoCapture(video_name)
 	frameRate = cap.get(5)
 	frames = []
