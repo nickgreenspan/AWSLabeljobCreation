@@ -3,6 +3,7 @@
 execpath="$0"
 scriptpath="$neurocaasrootdir/ncap_utils"
 
+
 source "$scriptpath/workflow.sh"
 
 ## Import functions for data transfer 
