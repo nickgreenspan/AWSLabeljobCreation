@@ -35,10 +35,51 @@ with open('config.yaml', 'r') as f:
 		shortintruct = doc['shortintruct']
 		fullinstruct = doc['fullinstruct']
 		bodyparts = doc['bodyparts']
+		target_bucket = doc['finaldatabucket']
+		skeleton = doc['skeleton']
 		for label in bodyparts:
 			task_labels.append({'label': label})
 		numframes = doc['numframes2pick']
 
+os.remove(config_name)
+model_config = {
+'process_dir': output_dir, #added as lambda function needs this info to get the output of the labeling job
+'video_name': video_name.split('.')[0],
+'Task': 'Reaching',
+'TrainingFraction': [0.95],
+'alphavalue': 0.7,
+'batch_size': 4,
+'bodyparts': bodyparts,
+'colormap': 'jet',
+'corner2move2': [50, 50],
+'cropping': 'false',
+'date': 'Aug30',
+'default_net_type': 'resnet_50',
+'dotsize': 12,
+'iteration': 0,
+'move2corner': 'true',
+'numframes2pick': 40,
+'pcutoff': 0.4,
+'project_path': "data", #changed, no /Reaching-Mackenzie-2018-08-30
+"resnet": "null",
+"scorer": "Mackenzie",
+"skeleton": skeleton, #[["Hand", "Finger1"],["Joystick1", "Joystick2"]],
+"skeleton_color": 'blue',
+"snapshotindex": -1,
+"start": 0,
+"stop": 1,
+"video_sets": {
+  "videos/" + video_path.split('/')[-1]:
+    {'crop' : (0, 832, 0, 747)}
+},
+'x1': 0,
+'x2': 640,
+'y1': 277,
+'y2': 624}
+with open('config.yaml', 'w') as f: #creating dlc config file
+	yaml.dump(model_config, f)
+
+s3.bucket(target_bucket).upload_file('config.yaml', 'data/config.yaml')
 upid = 'us-east-1_ZxGaQUSI2'
 clientId = '7cujg3m8o3sh6cqg39lcbc1ool'
 #labeluri = 'https://pgvx2rzogw.labeling.us-east-1.sagemaker.aws'
@@ -62,7 +103,7 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 		prehumantasklambdaarn = 'arn:aws:lambda:us-east-1:432418664414:function:PRE-VideoObjectTracking'
 		annotationconsolidationconfigarn = 'arn:aws:lambda:us-east-1:432418664414:function:ACS-VideoObjectTracking'
 
-	job = smclient.create_labeling_job(LabelingJobName= (jobname+ str(trial_num)), LabelAttributeName= "Label-ref", #could change labelattributename
+	job = smclient.create_labeling_job(LabelingJobName= jobname, LabelAttributeName= "Label-ref", #could change labelattributename
 		InputConfig={'DataSource': {'S3DataSource': {'ManifestS3Uri' : "s3://"+ input_data_bucket + "/" + lab_group_name + "/inputs/" + datasetname + ".manifest.json"}}}, 
 		OutputConfig= {'S3OutputPath': ("s3://"+ input_data_bucket + "/" + lab_group_name + "/" + output_dir)}, 
 		RoleArn = "arn:aws:iam::739988523141:role/labeljobcreator", #predefined role
@@ -93,7 +134,7 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 	print("https://neurocaasdomain.auth.us-east-1.amazoncognito.com/login?response_type=code&client_id=" + clientId + "&redirect_uri=https://"+ labeluri + "/oauth2/idpresponse")
 	print("labeluri: " + labeluri)
 
-preprocess_job(video_bucket, video_path, video_name, input_data_bucket, lab_group_name, numframes, annotationtype, task_labels, datasetname, shortintruct, fullinstruct)
+preprocess_job(video_bucket, video_path, video_name, input_data_bucket, target_bucket, lab_group_name, numframes, annotationtype, task_labels, datasetname, shortintruct, fullinstruct)
 createLabelJob(users, jobname, input_data_bucket, datasetname, annotationtype)
 
 os.remove(config_name)
