@@ -11,4 +11,4 @@ source "$scriptpath/transfer.sh"
 ## Set up error logging.
 errorlog
 
-python3 "../AWSLabeljobCreation/createLabelJobGeneral.py" "$bucketname" "$dataname" "$inputpath" "$configname" "$configpath" "$processdir" "$groupdir"
+python3 "/home/ubuntu/AWSLabeljobCreation/createLabelJobGeneral.py" "$bucketname" "$dataname" "$inputpath" "$configname" "$configpath" "$processdir" "$groupdir"

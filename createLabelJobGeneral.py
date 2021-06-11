@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
 
 #testing purposes ###############################
-trial_num = 5
+trial_num = 6
 #################################################
 
 client = boto3.client('cognito-idp', region_name = 'us-east-1')
