@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
 
 #testing purposes ###############################
-trial_num = 251
+#trial_num = 251
 #################################################
 
 client = boto3.client('cognito-idp', region_name = 'us-east-1')
@@ -86,19 +86,27 @@ clientId = '7cujg3m8o3sh6cqg39lcbc1ool'
 
 def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #You must use the same clientId for all of your workteams, so all workteams must be part of the same userpool
 	try:
-		group = client.create_group(GroupName = (lab_group_name + str(trial_num)), UserPoolId = upid) #note groupname requirements
+		group = client.create_group(GroupName = lab_group_name, UserPoolId = upid) #note groupname requirements
 	except:
-		group = client.get_group(GroupName = (lab_group_name + str(trial_num)), UserPoolId = upid)
+		group = client.get_group(GroupName = lab_group_name, UserPoolId = upid)
 	
 	for user in users:
 		try: 
 			userinfo = client.admin_create_user(UserPoolId=upid, Username = user[0], UserAttributes=[{'Name': 'email', 'Value': user[1]}]) #once the users are added to the userpool they don't need to be added again
 		except:
 			print(user[0] + " already in userpool, continuing")
-		client.admin_add_user_to_group(UserPoolId = upid, Username = user[0], GroupName = group['Group']['GroupName'])
+		
+		try:
+			client.admin_add_user_to_group(UserPoolId = upid, Username = user[0], GroupName = group['Group']['GroupName'])
+		except:
+			print(user[0] + " already in user group, continuing")
 
 	#You cannot create more than 25 work teams in an account and region
-	workteam = smclient.create_workteam(WorkteamName= "Team" + str(trial_num) + lab_group_name, MemberDefinitions=[{'CognitoMemberDefinition': {'UserPool': upid, 'UserGroup': group['Group']['GroupName'], 'ClientId': clientId}}], Description='Team' + lab_group_name)
+	try: 
+		workteam = smclient.create_workteam(WorkteamName= "Team" + lab_group_name, MemberDefinitions=[{'CognitoMemberDefinition': {'UserPool': upid, 'UserGroup': group['Group']['GroupName'], 'ClientId': clientId}}], Description='Team' + lab_group_name)
+	except:
+		workteam = smclient.describe_workteam(WorkteamName = "Team" + lab_group_name)
+	
 	humantaskuiarn = ""
 	prehumantasklambdaarn = ""
 	annotationconsolidationconfigarn = ""
@@ -116,7 +124,7 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 			'WorkteamArn': workteam['WorkteamArn'],
 			'UiConfig': {'HumanTaskUiArn': humantaskuiarn}, #need to be changed depending on label job type
 	        'PreHumanTaskLambdaArn': prehumantasklambdaarn,
-	        'TaskTitle': (jobname+ str(trial_num)),
+	        'TaskTitle': (jobname),
 	        'TaskDescription': "Label the data", #can change if necessary
 	        'NumberOfHumanWorkersPerDataObject': 1, #can change this
 	        'TaskTimeLimitInSeconds' : 172800,
