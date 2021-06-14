@@ -121,7 +121,7 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 		RoleArn = "arn:aws:iam::739988523141:role/labeljobcreator", #predefined role
 		LabelCategoryConfigS3Uri = "s3://"+ input_data_bucket + "/" + lab_group_name + "/inputs/label_config_full.json",
 		HumanTaskConfig = {
-			'WorkteamArn': workteam['WorkteamArn'],
+			'WorkteamArn': workteam['Workteam']['WorkteamArn'],
 			'UiConfig': {'HumanTaskUiArn': humantaskuiarn}, #need to be changed depending on label job type
 	        'PreHumanTaskLambdaArn': prehumantasklambdaarn,
 	        'TaskTitle': (jobname),
