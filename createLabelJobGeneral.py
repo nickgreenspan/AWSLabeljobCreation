@@ -85,7 +85,11 @@ clientId = '7cujg3m8o3sh6cqg39lcbc1ool'
 #labeluri = 'https://pgvx2rzogw.labeling.us-east-1.sagemaker.aws'
 
 def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #You must use the same clientId for all of your workteams, so all workteams must be part of the same userpool
-	group = client.create_group(GroupName = (lab_group_name + str(trial_num)), UserPoolId = upid) #note groupname requirements
+	try:
+		group = client.create_group(GroupName = (lab_group_name + str(trial_num)), UserPoolId = upid) #note groupname requirements
+	except:
+		group = client.get_group(GroupName = (lab_group_name + str(trial_num)), UserPoolId = upid)
+	
 	for user in users:
 		try: 
 			userinfo = client.admin_create_user(UserPoolId=upid, Username = user[0], UserAttributes=[{'Name': 'email', 'Value': user[1]}]) #once the users are added to the userpool they don't need to be added again
