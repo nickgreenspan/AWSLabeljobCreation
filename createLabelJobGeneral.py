@@ -104,6 +104,7 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 	#You cannot create more than 25 work teams in an account and region
 	try: 
 		workteam = smclient.create_workteam(WorkteamName= "Team" + lab_group_name, MemberDefinitions=[{'CognitoMemberDefinition': {'UserPool': upid, 'UserGroup': group['Group']['GroupName'], 'ClientId': clientId}}], Description='Team' + lab_group_name)
+		workteam = smclient.describe_workteam(WorkteamName = "Team" + lab_group_name)
 	except:
 		workteam = smclient.describe_workteam(WorkteamName = "Team" + lab_group_name)
 	
@@ -133,8 +134,8 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 	        }
 	    })
 
-	workteam_info = smclient.describe_workteam(WorkteamName = "Team" + lab_group_name)
-	labeluri = workteam_info['Workteam']['SubDomain']
+	#workteam_info = smclient.describe_workteam(WorkteamName = "Team" + lab_group_name)
+	labeluri = workteam['Workteam']['SubDomain']
 
 	#writes labeling url info to file and uploads to bucket
 	file1 = open('labeling_urls.txt', 'w')
