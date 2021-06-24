@@ -37,6 +37,7 @@ with open('config.yaml', 'r') as f:
 		bodyparts = doc['bodyparts']
 		target_bucket = doc['finaldatabucket']
 		skeleton = doc['skeleton']
+		data_format = doc['dataformat']
 		for label in bodyparts:
 			task_labels.append({'label': label})
 		numframes = doc['numframes2pick']
@@ -79,7 +80,7 @@ model_config = {
 with open('config.yaml', 'w') as f: #creating dlc config file
 	yaml.dump(model_config, f)
 
-s3.Bucket(target_bucket).upload_file('config.yaml', 'data/config.yaml')
+s3.Bucket(target_bucket).upload_file('config.yaml', jobname + '/data/config.yaml')
 upid = 'us-east-1_ZxGaQUSI2'
 clientId = '7cujg3m8o3sh6cqg39lcbc1ool'
 #labeluri = 'https://pgvx2rzogw.labeling.us-east-1.sagemaker.aws'
@@ -147,7 +148,7 @@ def createLabelJob(users, jobname, input_data_bucket, datasetname, anntype):   #
 	print("https://neurocaasdomain.auth.us-east-1.amazoncognito.com/login?response_type=code&client_id=" + clientId + "&redirect_uri=https://"+ labeluri + "/oauth2/idpresponse")
 	print("labeluri: " + labeluri)
 
-preprocess_job(video_bucket, video_path, video_name, input_data_bucket, target_bucket, lab_group_name, numframes, annotationtype, task_labels, datasetname, shortintruct, fullinstruct)
+preprocess_job(data_format, jobname, video_bucket, video_path, video_name, input_data_bucket, target_bucket, lab_group_name, numframes, annotationtype, task_labels, datasetname, shortintruct, fullinstruct)
 createLabelJob(users, jobname, input_data_bucket, datasetname, annotationtype)
 
 os.remove(config_name)

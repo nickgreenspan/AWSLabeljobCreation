@@ -5,45 +5,70 @@ import cv2
 import math
 from datetime import datetime
 import os
+import zipfile
 #import io
 
 s3client = boto3.client('s3', region_name = 'us-east-1')
 s3 = boto3.resource('s3', region_name = 'us-east-1')
 
-def preprocess_job(video_bucket, video_path, video_name, input_data_bucket, target_bucket, lab_group_name, numframes, anntype, labels, datasetname, shortintruct, fullinstruct):
+def preprocess_job(data_format, job_name, video_bucket, video_path, video_name, input_data_bucket, target_bucket, lab_group_name, numframes, anntype, labels, datasetname, shortintruct, fullinstruct):
 	#newbuc = s3.create_bucket(ACL = 'public-read-write', Bucket=input_data_bucket) #if bucket doesn't already exist
-	video_base = video_name.split('.', 1)[0] #gets the filename without extension
-	s3.Bucket(video_bucket).download_file(video_path, video_name)
-	s3client.copy_object(Bucket = target_bucket, CopySource = {"Bucket" : video_bucket, "Key": video_path}, Key = "data/videos/"+ video_name) #copies the original video to the output location
-	cap = cv2.VideoCapture(video_name)
-	frameRate = cap.get(5)
-	frames = []
-	f = 0
-	sequence_1 = {} #starting with only one sequence
-	sequence_1["seq-no"] = 1
-	sequence_1["prefix"] = ("s3://" + input_data_bucket + "/" + lab_group_name + '/inputs/' + video_base + "/")
-
-	while(cap.isOpened()):
-		if (f > numframes):
-			print("exceeded")
-			break
-		frameId = cap.get(1) #current frame number
-		ret, frame = cap.read()
-		if (ret != True):
-		    break
-		hasFrame, imageBytes = cv2.imencode(".jpg", frame)
-		if(hasFrame):
-			s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + video_base + '/frame_' + str(f) + '.jpeg'), Body=imageBytes.tobytes())
+	if (data_format == "frames"):
+		folder_base = video_name.split('.', 1)[0] #gets the name of the zipfile without the extention
+		s3.Bucket(video_bucket).download_file(video_path, video_name) #downloads zip file of folder of frames
+		unzippedfile = zipfile.ZipFile(video_name, "r")
+		frames = []
+		f = 0
+		sequence_1 = {}
+		sequence_1["seq-no"] = 1
+		sequence_1["prefix"] = ("s3://" + input_data_bucket + "/" + lab_group_name + '/inputs/' + video_base + "/")
+		file_names = unzippedfile.namelist()
+		for name in file_names:
+			if name == ".DS_Store":
+				continue
+			s3client.upload_file(Bucket = input_data_bucket, Key = (lab_group_name + '/inputs/' + video_base + "/" + name), Filename = name)
 			frame_dict = {}
 			frame_dict["frame-no"] = f + 1
 			frame_dict["unix-timestamp"] = 2 #doesn't matter
-			frame_dict["frame"] = ("frame_" + str(f) + '.jpeg')
+			frame_dict["frame"] = (name)
 			frames.append(frame_dict)
-			f += 1		
-	cap.release()
+			f += 1
+		sequence_1["frames"] = frames
+		sequence_1["number-of-frames"] = f		
 
-	sequence_1["frames"] = frames
-	sequence_1["number-of-frames"] = f + 1
+	else: #data_format == "video"
+		video_base = video_name.split('.', 1)[0] #gets the filename without extension
+		s3.Bucket(video_bucket).download_file(video_path, video_name)
+		s3client.copy_object(Bucket = target_bucket, CopySource = {"Bucket" : video_bucket, "Key": video_path}, Key = job_name + "/data/videos/"+ video_name) #copies the original video to the output location
+		cap = cv2.VideoCapture(video_name)
+		frameRate = cap.get(5)
+		frames = []
+		f = 0
+		sequence_1 = {} #starting with only one sequence
+		sequence_1["seq-no"] = 1
+		sequence_1["prefix"] = ("s3://" + input_data_bucket + "/" + lab_group_name + '/inputs/' + video_base + "/")
+
+		while(cap.isOpened()):
+			if (f >= numframes):
+				print("exceeded")
+				break
+			frameId = cap.get(1) #current frame number
+			ret, frame = cap.read()
+			if (ret != True):
+			    break
+			hasFrame, imageBytes = cv2.imencode(".jpg", frame)
+			if(hasFrame):
+				s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + video_base + '/frame_' + str(f) + '.jpeg'), Body=imageBytes.tobytes())
+				frame_dict = {}
+				frame_dict["frame-no"] = f + 1
+				frame_dict["unix-timestamp"] = 2 #doesn't matter
+				frame_dict["frame"] = ("frame_" + str(f) + '.jpeg')
+				frames.append(frame_dict)
+				f += 1		
+		cap.release()
+
+		sequence_1["frames"] = frames
+		sequence_1["number-of-frames"] = f + 1
 
 	#uploads sequence file    
 	s3client.put_object(Bucket = input_data_bucket, Key=(lab_group_name + '/inputs/' + video_base + '/seq1.json'), Body=(bytes(json.dumps(sequence_1).encode('UTF-8'))))
