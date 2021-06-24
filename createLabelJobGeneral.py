@@ -59,7 +59,7 @@ model_config = {
 'dotsize': 12,
 'iteration': 0,
 'move2corner': 'true',
-'numframes2pick': 40,
+'numframes2pick': numframes,
 'pcutoff': 0.4,
 'project_path': "data", #changed, no /Reaching-Mackenzie-2018-08-30
 "resnet": "null",
