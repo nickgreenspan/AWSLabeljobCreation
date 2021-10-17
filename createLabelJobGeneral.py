@@ -40,12 +40,11 @@ def createLabelJob(users, job_name, input_data_bucket, datasetname):   #You must
 
 if __name__ == "__main__":
         #might want to change all the video_ variables to outer_folder_ or data_ 
-        video_bucket = sys.argv[1] #$bucketname
-        video_name = sys.argv[2] #$dataname, might want to rename to outerfolder name
-        video_path = sys.argv[3] #$inputpath, likewise
+        input_data_bucket = sys.argv[1] #$bucketname
+        data_name = sys.argv[2] #$dataname, might want to rename to outerfolder name
+        data_path = sys.argv[3] #$inputpath, likewise
         config_name = sys.argv[4] #$configname
         config_path = sys.argv[5] #$configpath and assume custom config file layout
-        input_data_bucket = video_bucket #assuming they should be the same
         output_dir = sys.argv[6] #$processdir
         lab_group_name = sys.argv[7] #$groupdir
 
@@ -56,8 +55,8 @@ if __name__ == "__main__":
 client = boto3.client('cognito-idp', region_name = 'us-east-1')
 smclient = boto3.client('sagemaker', region_name = 'us-east-1')
 s3 = boto3.resource('s3', region_name = 'us-east-1')
-print("video_bucket:" +  video_bucket)
-s3.Bucket(video_bucket).download_file(config_path, config_name)
+print("input_data_bucket:" +  input_data_bucket)
+s3.Bucket(input_data_bucket).download_file(config_path, config_name)
 
 print(config_name)
 with open(config_name, 'r') as f:
@@ -102,12 +101,14 @@ except:
 labeluri = workteam['Workteam']['SubDomain']
 print("labeluri: " + labeluri)
 
-video_base = video_name.split('.', 1)[0] #gets the name of the zipfile without the extention
-s3.Bucket(video_bucket).download_file(video_path, video_name) #downloads zip file of folder of frames
+data_base = data_name.split('.', 1)[0] #gets the name of the zipfile without the extention
+s3.Bucket(input_data_bucket).download_file(data_path, data_name) #downloads zip file of folder of frames
+
+unzippedfolder = zipfile.ZipFile(data_name, "r")
+
 if data_format == "frames":
-        unzippedfile = zipfile.ZipFile(video_name, "r")
         file_dict = collections.defaultdict(list)
-        for file in unzippedfile.namelist():
+        for file in unzippedfolder.namelist():
                 file_split = file.split("/")   
                 if len(file_split) != 3 or file_split[-1] == '.DS_Store': #basefolder/datasetfolder/imagename
                         continue
@@ -128,7 +129,7 @@ for job_name, jobinfo in jobs_info.items():
         skeleton = jobinfo["skeleton"]
         model_config = {
                 #'process_dir': output_dir, #added as lambda function needs this info to get the output of the labeling job
-                #'video_name': video_name.split('.')[0],
+                #'data_name': data_name.split('.')[0],
                 'Task': 'Reaching',
                 'TrainingFraction': [0.95],
                 'alphavalue': 0.7,
@@ -153,7 +154,7 @@ for job_name, jobinfo in jobs_info.items():
                 "start": 0,
                 "stop": 1,
                 "video_sets": {
-                "videos/" + video_path.split('/')[-1]:
+                "videos/" + data_path.split('/')[-1]:
                 {'crop' : (0, 832, 0, 747)}
                 },
                 'x1': 0,
@@ -168,11 +169,11 @@ for job_name, jobinfo in jobs_info.items():
         for label in bodyparts:
                 labels.append({'label': label})
         if data_format == "frames":
-                preprocess_frames_job(unique_job_name, file_dict[datasetname], unzippedfile, video_bucket, video_path, video_base, video_name, input_data_bucket, target_bucket, lab_group_name, labels, datasetname, shortintruct, fullinstruct)
+                preprocess_frames_job(unique_job_name, file_dict[datasetname], unzippedfolder, input_data_bucket, data_path, data_base, data_name, target_bucket, lab_group_name, labels, datasetname, shortintruct, fullinstruct)
         else:
-                preprocess_video_job(unique_job_name, video_bucket, video_path, video_name, input_data_bucket, target_bucket, lab_group_name, numframes, labels, datasetname, shortintruct, fullinstruct)
+                preprocess_video_job(unique_job_name, datasetname, unzippedfolder, data_path, data_base, data_name, input_data_bucket, target_bucket, lab_group_name, numframes, labels, shortintruct, fullinstruct)
         createLabelJob(users, unique_job_name, input_data_bucket, datasetname)
-os.remove(video_name) #name of outer folder
+os.remove(data_name) #name of outer folder
 
 #or just copy to the original config file to the output directory and change the name to config.yaml
 output_config = {
@@ -180,5 +181,5 @@ output_config = {
         'outerfoldername': video_base,
         'body'
 }
-output_config['process_dir': output_dir]
+
 

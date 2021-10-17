@@ -11,15 +11,15 @@ import zipfile
 s3client = boto3.client('s3', region_name = 'us-east-1')
 s3 = boto3.resource('s3', region_name = 'us-east-1')
 
-def uploadInfo(input_data_bucket, lab_group_name, sequence_1, video_base, video_name, datasetname, job_name, labels, shortintruct, fullinstruct):
+def uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, dataset_name, job_name, labels, shortintruct, fullinstruct):
         #uploads sequence file    
-        s3client.put_object(Bucket = input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + datasetname + '/seq1.json'), Body=(bytes(json.dumps(sequence_1).encode('UTF-8'))))
+        s3client.put_object(Bucket = input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + dataset_name + '/seq1.json'), Body=(bytes(json.dumps(sequence_1).encode('UTF-8'))))
 
         #creates manifest file
         manifest = {}
-        manifest["source-ref"] = "s3://" + input_data_bucket + '/' + lab_group_name + '/inputs/' + job_name + "/" + datasetname + "/seq1.json"
+        manifest["source-ref"] = "s3://" + input_data_bucket + '/' + lab_group_name + '/inputs/' + job_name + "/" + dataset_name + "/seq1.json"
 
-        s3client.put_object(Bucket = input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + datasetname + '.manifest.json'), Body=(bytes(json.dumps(manifest).encode('UTF-8'))))
+        s3client.put_object(Bucket = input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + dataset_name + '.manifest.json'), Body=(bytes(json.dumps(manifest).encode('UTF-8'))))
 
         #create label config file
         label_config = {}
@@ -46,19 +46,19 @@ def sorter(x):
     except:
         return 0
 
-def preprocess_frames_job(job_name, file_names, unzippedfile, video_bucket, video_path, video_base, video_name, input_data_bucket, target_bucket, lab_group_name, labels, datasetname, shortintruct, fullinstruct):
+def preprocess_frames_job(job_name, file_names, unzippedfolder, data_path, data_base, data_name, input_data_bucket, target_bucket, lab_group_name, labels, dataset_name, shortintruct, fullinstruct):
     frames = []
     f = 0
     sequence_1 = {}
     sequence_1["seq-no"] = 1
-    sequence_1["prefix"] = ("s3://" + input_data_bucket + "/" + lab_group_name + '/inputs/' + job_name + "/" + datasetname + "/")
+    sequence_1["prefix"] = ("s3://" + input_data_bucket + "/" + lab_group_name + '/inputs/' + job_name + "/" + dataset_name + "/")
 
     file_names_sorted = sorted(file_names, key = sorter)
     for name in file_names_sorted:
         name_split = name.split("/")
         name_start = name_split[0]
-        if name_start != video_base:
-            print("name_start != video_base")
+        if name_start != data_base:
+            print("name_start != data_base")
             continue
         #folder_name = name_split[1]
         file_name = name_split[2]
@@ -67,8 +67,8 @@ def preprocess_frames_job(job_name, file_names, unzippedfile, video_bucket, vide
         extension = file_name.split(".")[1]
         if (extension != "png" and extension != "jpeg" and extension != "jpg"): #think about other extensions
             continue
-        unzippedfile.extract(name)
-        s3client.upload_file(Bucket = input_data_bucket, Key = (lab_group_name + '/inputs/' + job_name + "/" + datasetname + "/" + file_name), Filename = name)
+        unzippedfolder.extract(name)
+        s3client.upload_file(Bucket = input_data_bucket, Key = (lab_group_name + '/inputs/' + job_name + "/" + dataset_name + "/" + file_name), Filename = name)
         os.remove(name)
         frame_dict = {}
         frame_dict["frame-no"] = f + 1
@@ -78,22 +78,21 @@ def preprocess_frames_job(job_name, file_names, unzippedfile, video_bucket, vide
         f += 1
     sequence_1["frames"] = frames
     sequence_1["number-of-frames"] = f
-    uploadInfo(input_data_bucket, lab_group_name, sequence_1, video_base, video_name, datasetname, job_name, labels, shortintruct, fullinstruct)
+    uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, dataset_name, job_name, labels, shortintruct, fullinstruct)
 
 
 #TODO: add fancy frame selection tools
-def preprocess_video_job(job_name, video_bucket, video_path, video_name, input_data_bucket, target_bucket, lab_group_name, numframes, labels, datasetname, shortintruct, fullinstruct):
-        #newbuc = s3.create_bucket(ACL = 'public-read-write', Bucket=input_data_bucket) #if bucket doesn't already exist
-    video_base = video_name.split('.', 1)[0] #gets the filename without extension
-    s3.Bucket(video_bucket).download_file(video_path, video_name)
-    s3client.copy_object(Bucket = target_bucket, CopySource = {"Bucket" : video_bucket, "Key": video_path}, Key = job_name + "/data/videos/"+ video_name) #copies the original video to the output location
+def preprocess_video_job(job_name, video_name, unzippedfolder, data_path, data_base, data_name, input_data_bucket, target_bucket, lab_group_name, numframes, labels, shortintruct, fullinstruct):
+    #s3.Bucket(input_data_bucket).download_file(data_path, (data_name + )
+    #s3client.copy_object(Bucket = target_bucket, CopySource = {"Bucket" : input_data_bucket, "Key": data_path}, Key = job_name + "/data/videos/"+ data_name) #copies the original video to the output location
+    unzippedfolder.extract(data_base + '/' + video_name)
     cap = cv2.VideoCapture(video_name)
     frameRate = cap.get(5)
     frames = []
     f = 0
     sequence_1 = {} #starting with only one sequence
     sequence_1["seq-no"] = 1
-    sequence_1["prefix"] = ("s3://" + input_data_bucket + "/" + lab_group_name + '/inputs/' + video_base + "/")
+    sequence_1["prefix"] = ("s3://" + input_data_bucket + "/" + lab_group_name + '/inputs/' + job_name + "/" + video_name + "/")
     while(cap.isOpened()):
             if (f >= numframes):
                     print("exceeded")
@@ -104,7 +103,7 @@ def preprocess_video_job(job_name, video_bucket, video_path, video_name, input_d
                 break
             hasFrame, imageBytes = cv2.imencode(".jpg", frame)
             if(hasFrame):
-                    s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + video_base + '/frame_' + str(f) + '.jpeg'), Body=imageBytes.tobytes())
+                    s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + video_name + '/frame_' + str(f) + '.jpeg'), Body=imageBytes.tobytes())
                     frame_dict = {}
                     frame_dict["frame-no"] = f + 1
                     frame_dict["unix-timestamp"] = 2 #doesn't matter
@@ -114,7 +113,7 @@ def preprocess_video_job(job_name, video_bucket, video_path, video_name, input_d
     cap.release()
     sequence_1["frames"] = frames
     sequence_1["number-of-frames"] = f + 1
-    uploadInfo(input_data_bucket, lab_group_name, sequence_1, video_base, video_name, datasetname, job_name, labels, shortintruct, fullinstruct)
+    uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, video_name, job_name, labels, shortintruct, fullinstruct)
 
 
 
