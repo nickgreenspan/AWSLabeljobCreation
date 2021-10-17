@@ -129,7 +129,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
 
         frame_array = np.empty(shape=(numinputframes, frame_width, frame_height))
 
-
+    os.remove(data_base + '/' + video_name + video_format)
     sequence_1["frames"] = frames
     sequence_1["number-of-frames"] = f + 1
     uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, video_name, job_name, labels, shortintruct, fullinstruct)
