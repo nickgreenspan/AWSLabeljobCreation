@@ -48,32 +48,21 @@ if __name__ == "__main__":
         output_dir = sys.argv[6] #$processdir
         lab_group_name = sys.argv[7] #$groupdir
 
-#testing purposes ###############################
-#trial_num = 251
-#################################################
 
 client = boto3.client('cognito-idp', region_name = 'us-east-1')
 smclient = boto3.client('sagemaker', region_name = 'us-east-1')
 s3 = boto3.resource('s3', region_name = 'us-east-1')
 print("input_data_bucket:" +  input_data_bucket)
 s3.Bucket(input_data_bucket).download_file(config_path, config_name)
-
 print(config_name)
 with open(config_name, 'r') as f:
         doc = yaml.load(f)
         users = doc['labelers']
         jobs_info = doc['jobs_info']
-        #datasetname = doc['datasetname'] #note requirements for datasetname
         shortintruct = doc['shortintruct']
         fullinstruct = doc['fullinstruct']
-        #bodyparts = doc['bodyparts']
         target_bucket = doc['finaldatabucket']
-        #skeleton = doc['skeleton']
         data_format = doc['dataformat']
-        # for label in bodyparts:
-        #         task_labels.append({'label': label})
-        numframes = doc['numframes2pick']
-os.remove(config_name)
 
 try:
         group = client.create_group(GroupName = lab_group_name, UserPoolId = UPID) #note groupname requirements
@@ -103,7 +92,6 @@ print("labeluri: " + labeluri)
 
 data_base = data_name.split('.', 1)[0] #gets the name of the zipfile without the extention
 s3.Bucket(input_data_bucket).download_file(data_path, data_name) #downloads zip file of folder of frames
-
 unzippedfolder = zipfile.ZipFile(data_name, "r")
 
 if data_format == "frames":
@@ -143,7 +131,7 @@ for job_name, jobinfo in jobs_info.items():
                 'dotsize': 12,
                 'iteration': 0,
                 'move2corner': 'true',
-                'numframes2pick': numframes,
+                #'numframes2pick': numframes,
                 'pcutoff': 0.4,
                 'project_path': "data", #changed, no /Reaching-Mackenzie-2018-08-30
                 "resnet": "null",
@@ -165,21 +153,25 @@ for job_name, jobinfo in jobs_info.items():
                 yaml.dump(model_config, f)
         s3.Bucket(target_bucket).upload_file('dlc_config.yaml', unique_job_name + '/data/dlc_config.yaml')
         os.remove('dlc_config.yaml') #deleting model training config file
+        
         labels = []
         for label in bodyparts:
                 labels.append({'label': label})
         if data_format == "frames":
                 preprocess_frames_job(unique_job_name, file_dict[datasetname], unzippedfolder, input_data_bucket, data_path, data_base, data_name, target_bucket, lab_group_name, labels, datasetname, shortintruct, fullinstruct)
         else:
-                preprocess_video_job(unique_job_name, datasetname, unzippedfolder, data_path, data_base, data_name, input_data_bucket, target_bucket, lab_group_name, numframes, labels, shortintruct, fullinstruct)
+                selection_mode = jobinfo["selection_mode"]
+                numframes = jobinfo["numframes2pick"]
+                video_format = jobinfo["format"]
+                preprocess_video_job(unique_job_name, datasetname, video_format, unzippedfolder, data_path, data_base, data_name, input_data_bucket, target_bucket, lab_group_name, numframes, selection_mode, labels, shortintruct, fullinstruct)
         createLabelJob(users, unique_job_name, input_data_bucket, datasetname)
 os.remove(data_name) #name of outer folder
+os.remove(config_name) #base config file
 
 #or just copy to the original config file to the output directory and change the name to config.yaml
 output_config = {
         'process_dir': output_dir,
-        'outerfoldername': video_base,
-        'body'
+        'outerfoldername': data_base
 }
 
 
