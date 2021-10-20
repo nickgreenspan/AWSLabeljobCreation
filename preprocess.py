@@ -12,7 +12,8 @@ s3client = boto3.client('s3', region_name = 'us-east-1')
 s3 = boto3.resource('s3', region_name = 'us-east-1')
 
 def uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, dataset_name, job_name, labels, shortintruct, fullinstruct):
-        #uploads sequence file    
+        #uploads sequence file   
+        print(input_data_bucket) 
         s3client.put_object(Bucket = input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + dataset_name + '/seq1.json'), Body=(bytes(json.dumps(sequence_1).encode('UTF-8'))))
 
         #creates manifest file
@@ -45,7 +46,7 @@ def sorter(x):
     except:
         return 0
 
-def preprocess_frames_job(job_name, file_names, unzippedfolder, data_path, data_base, data_name, input_data_bucket, target_bucket, lab_group_name, labels, dataset_name, shortintruct, fullinstruct):
+def preprocess_frames_job(job_name, file_names, unzippedfolder, data_path, data_base, data_name, input_data_bucket, lab_group_name, labels, dataset_name, shortintruct, fullinstruct):
     frames = []
     f = 0
     sequence_1 = {}
@@ -79,7 +80,7 @@ def preprocess_frames_job(job_name, file_names, unzippedfolder, data_path, data_
     sequence_1["number-of-frames"] = f
     uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, dataset_name, job_name, labels, shortintruct, fullinstruct)
 
-def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, data_path, data_base, data_name, input_data_bucket, target_bucket, lab_group_name, numframes, selection_mode, labels, shortintruct, fullinstruct):
+def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, data_path, data_base, data_name, input_data_bucket, lab_group_name, numframes, selection_mode, labels, shortintruct, fullinstruct):
     #s3.Bucket(input_data_bucket).download_file(data_path, (data_name + )
     #s3client.copy_object(Bucket = target_bucket, CopySource = {"Bucket" : input_data_bucket, "Key": data_path}, Key = job_name + "/data/videos/"+ data_name) #copies the original video to the output location
     if video_format[0] != '.':
@@ -125,9 +126,8 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
     elif selection_mode == "motion_pca_cluster":
         numinputframes = numframes * 5
         frame_freq *= 5
-
-
         frame_array = np.empty(shape=(numinputframes, frame_width, frame_height))
+        #ADD MORE
 
     os.remove(data_base + '/' + video_name + video_format)
     sequence_1["frames"] = frames

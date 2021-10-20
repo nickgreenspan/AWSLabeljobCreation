@@ -59,11 +59,11 @@ with open(config_name, 'r') as f:
         doc = yaml.load(f)
         users = doc['labelers']
         jobs_info = doc['jobs_info']
-        shortintruct = doc['shortintruct']
+        shortinstruct = doc['shortinstruct']
         fullinstruct = doc['fullinstruct']
-        target_bucket = doc['finaldatabucket']
         data_format = doc['dataformat']
-
+        #target_bucket =  doc['finaldatabucket']
+print(doc)
 try:
         group = client.create_group(GroupName = lab_group_name, UserPoolId = UPID) #note groupname requirements
 except:
@@ -103,6 +103,7 @@ if data_format == "frames":
                 datasetname = file_split[1]
                 file_dict[datasetname].append(file)    
 
+updated_jobs_info = {}
 for job_name, jobinfo in jobs_info.items():
         try:
                 smclient.describe_labeling_job(LabelingJobName= job_name)
@@ -118,60 +119,70 @@ for job_name, jobinfo in jobs_info.items():
         #model_config = {
                 #'process_dir': output_dir, #added as lambda function needs this info to get the output of the labeling job
                 #'data_name': data_name.split('.')[0],
-                'Task': 'Reaching',
-                'TrainingFraction': [0.95],
-                'alphavalue': 0.7,
-                'batch_size': 4,
-                #'bodyparts': bodyparts,
-                'colormap': 'jet',
-                'corner2move2': [50, 50],
-                'cropping': 'false',
-                'date': 'Aug30',
-                'default_net_type': 'resnet_50',
-                'dotsize': 12,
-                'iteration': 0,
-                'move2corner': 'true',
-                #'numframes2pick': numframes,
-                'pcutoff': 0.4,
-                'project_path': "data", #changed, no /Reaching-Mackenzie-2018-08-30
-                "resnet": "null",
-                "scorer": "Mackenzie",
-                "skeleton": skeleton, #[["Hand", "Finger1"],["Joystick1", "Joystick2"]],
-                "skeleton_color": 'blue',
-                "snapshotindex": -1,
-                "start": 0,
-                "stop": 1,
-                "video_sets": {
-                "videos/" + data_path.split('/')[-1]:
-                {'crop' : (0, 832, 0, 747)}
-                },
-                'x1': 0,
-                'x2': 640,
-                'y1': 277,
-                'y2': 624}
+                # 'Task': 'Reaching',
+                # 'TrainingFraction': [0.95],
+                # 'alphavalue': 0.7,
+                # 'batch_size': 4,
+                # #'bodyparts': bodyparts,
+                # 'colormap': 'jet',
+                # 'corner2move2': [50, 50],
+                # 'cropping': 'false',
+                # 'date': 'Aug30',
+                # 'default_net_type': 'resnet_50',
+                # 'dotsize': 12,
+                # 'iteration': 0,
+                # 'move2corner': 'true',
+                # #'numframes2pick': numframes,
+                # 'pcutoff': 0.4,
+                # 'project_path': "data", #changed, no /Reaching-Mackenzie-2018-08-30
+                # "resnet": "null",
+                # "scorer": "Mackenzie",
+                # "skeleton": skeleton, #[["Hand", "Finger1"],["Joystick1", "Joystick2"]],
+                # "skeleton_color": 'blue',
+                # "snapshotindex": -1,
+                # "start": 0,
+                # "stop": 1,
+                # "video_sets": {
+                # "videos/" + data_path.split('/')[-1]:
+                # {'crop' : (0, 832, 0, 747)}
+                # },
+                # 'x1': 0,
+                # 'x2': 640,
+                # 'y1': 277,
+                # 'y2': 624}
         # with open('dlc_config.yaml', 'w') as f: #creating dlc config file
         #         yaml.dump(model_config, f)
         #s3.Bucket(target_bucket).upload_file('dlc_config.yaml', unique_job_name + '/data/dlc_config.yaml')
         #os.remove('dlc_config.yaml') #deleting model training config file
-        
+        #s3client.copy_object(Bucket = input_data_bucket, CopySource = {"Bucket" : input_data_bucket, "Key": config_path}, Key = lab_group_name + "/configs/" + unique_job_name + "/config.yaml") 
         labels = []
         for label in bodyparts:
                 labels.append({'label': label})
         if data_format == "frames":
-                preprocess_frames_job(unique_job_name, file_dict[datasetname], unzippedfolder, input_data_bucket, data_path, data_base, data_name, target_bucket, lab_group_name, labels, datasetname, shortintruct, fullinstruct)
+                preprocess_frames_job(unique_job_name, file_dict[datasetname], unzippedfolder, data_path, data_base, data_name, input_data_bucket, lab_group_name, labels, datasetname, shortinstruct, fullinstruct)
         else:
                 selection_mode = jobinfo["selection_mode"]
                 numframes = jobinfo["numframes2pick"]
                 video_format = jobinfo["format"]
-                preprocess_video_job(unique_job_name, datasetname, video_format, unzippedfolder, data_path, data_base, data_name, input_data_bucket, target_bucket, lab_group_name, numframes, selection_mode, labels, shortintruct, fullinstruct)
+                preprocess_video_job(unique_job_name, datasetname, video_format, unzippedfolder, data_path, data_base, data_name, input_data_bucket, lab_group_name, numframes, selection_mode, labels, shortinstruct, fullinstruct)
         createLabelJob(users, unique_job_name, input_data_bucket, datasetname)
+        updated_jobs_info[unique_job_name] = jobinfo
+
 os.remove(data_name) #name of outer folder
 os.remove(config_name) #base config file
 
+doc['jobs_info'] = updated_jobs_info
+print(doc)
+with open('config.yaml', 'w') as f:
+        yaml.dump(doc, f)
+for job_name in doc['jobs_info'].keys():
+        s3.Bucket(input_data_bucket).upload_file('config.yaml', lab_group_name + '/configs/' + job_name + "/config.yaml")
+os.remove('config.yaml')
+
 #or just copy to the original config file to the output directory and change the name to config.yaml
-output_config = {
-        'process_dir': output_dir,
-        'outerfoldername': data_base
-}
+# output_config = {
+#         'process_dir': output_dir,
+#         'outerfoldername': data_base
+# }
 
 
