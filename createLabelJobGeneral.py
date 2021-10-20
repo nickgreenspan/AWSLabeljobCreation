@@ -115,7 +115,7 @@ for job_name, jobinfo in jobs_info.items():
         datasetname = jobinfo["datasetname"]
         bodyparts = jobinfo["bodyparts"]
         skeleton = jobinfo["skeleton"]
-        model_config = {
+        #model_config = {
                 #'process_dir': output_dir, #added as lambda function needs this info to get the output of the labeling job
                 #'data_name': data_name.split('.')[0],
                 'Task': 'Reaching',
@@ -149,10 +149,10 @@ for job_name, jobinfo in jobs_info.items():
                 'x2': 640,
                 'y1': 277,
                 'y2': 624}
-        with open('dlc_config.yaml', 'w') as f: #creating dlc config file
-                yaml.dump(model_config, f)
-        s3.Bucket(target_bucket).upload_file('dlc_config.yaml', unique_job_name + '/data/dlc_config.yaml')
-        os.remove('dlc_config.yaml') #deleting model training config file
+        # with open('dlc_config.yaml', 'w') as f: #creating dlc config file
+        #         yaml.dump(model_config, f)
+        #s3.Bucket(target_bucket).upload_file('dlc_config.yaml', unique_job_name + '/data/dlc_config.yaml')
+        #os.remove('dlc_config.yaml') #deleting model training config file
         
         labels = []
         for label in bodyparts:
