@@ -62,6 +62,8 @@ with open(config_name, 'r') as f:
         shortinstruct = doc['shortinstruct']
         fullinstruct = doc['fullinstruct']
         data_format = doc['dataformat']
+        bodyparts = doc['bodyparts']
+        skeleton = doc["skeleton"]
         #target_bucket =  doc['finaldatabucket']
 print(doc)
 try:
@@ -104,6 +106,10 @@ if data_format == "frames":
                 file_dict[datasetname].append(file)    
 
 updated_jobs_info = {}
+labels = []
+for label in bodyparts:
+        labels.append({'label': label})
+
 for job_name, jobinfo in jobs_info.items():
         try:
                 smclient.describe_labeling_job(LabelingJobName= job_name)
@@ -114,8 +120,8 @@ for job_name, jobinfo in jobs_info.items():
         except:
                 unique_job_name = job_name
         datasetname = jobinfo["datasetname"]
-        bodyparts = jobinfo["bodyparts"]
-        skeleton = jobinfo["skeleton"]
+        #bodyparts = jobinfo["bodyparts"]
+        #skeleton = jobinfo["skeleton"]
         #model_config = {
                 #'process_dir': output_dir, #added as lambda function needs this info to get the output of the labeling job
                 #'data_name': data_name.split('.')[0],
@@ -155,16 +161,16 @@ for job_name, jobinfo in jobs_info.items():
         #s3.Bucket(target_bucket).upload_file('dlc_config.yaml', unique_job_name + '/data/dlc_config.yaml')
         #os.remove('dlc_config.yaml') #deleting model training config file
         #s3client.copy_object(Bucket = input_data_bucket, CopySource = {"Bucket" : input_data_bucket, "Key": config_path}, Key = lab_group_name + "/configs/" + unique_job_name + "/config.yaml") 
-        labels = []
-        for label in bodyparts:
-                labels.append({'label': label})
+        
         if data_format == "frames":
                 preprocess_frames_job(unique_job_name, file_dict[datasetname], unzippedfolder, data_path, data_base, data_name, input_data_bucket, lab_group_name, labels, datasetname, shortinstruct, fullinstruct)
         else:
+                start_point = jobinfo["start_point_proportion"]
+                end_point = jobinfo["end_point_proportion”]
                 selection_mode = jobinfo["selection_mode"]
                 numframes = jobinfo["numframes2pick"]
                 video_format = jobinfo["format"]
-                preprocess_video_job(unique_job_name, datasetname, video_format, unzippedfolder, data_path, data_base, data_name, input_data_bucket, lab_group_name, numframes, selection_mode, labels, shortinstruct, fullinstruct)
+                preprocess_video_job(unique_job_name, datasetname, video_format, unzippedfolder, data_path, data_base, data_name, input_data_bucket, lab_group_name, numframes, start_point, end_point, selection_mode, labels, shortinstruct, fullinstruct)
         createLabelJob(users, unique_job_name, input_data_bucket, datasetname)
         updated_jobs_info[unique_job_name] = jobinfo
 
