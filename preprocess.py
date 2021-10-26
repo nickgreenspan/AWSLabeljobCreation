@@ -15,6 +15,7 @@ s3client = boto3.client('s3', region_name = 'us-east-1')
 s3 = boto3.resource('s3', region_name = 'us-east-1')
 
 RANDOM_SEED = 10
+PCA_DIM = 200
 
 def uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, dataset_name, job_name, labels, shortintruct, fullinstruct):
     #uploads sequence file   
@@ -175,10 +176,12 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
                 frame_array[frame_array_idx] = frame
                 frame_array_idx += 1
         pca_array = frame_array.reshape((numinputframes, -1))
-        pca = PCA(n_components = 200) #check what SLEAP does, they do      
+        pca_components = min(pca_array.shape[0], pca_array.shape[1], PCA_DIM)
+        pca = PCA(n_components = pca_components) #check what SLEAP does, they do      
         compressed_array = pca.fit_transform(pca_array)
         kmeans = KMeans(n_clusters = numframes, random_state = RANDOM_SEED)
         cluster_idxs = kmeans.fit_predict(compressed_array)
+        print(cluster_idxs)
         used_clusters = set()
         final_idxs = [] #indexs are of the frame array, not of the actual video
         for frame_idx, cluster_idx in enumerate(cluster_idxs):
@@ -186,7 +189,10 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
                 final_idxs.append(frame_idx)
                 used_clusters.add(cluster_idx)
         
+        print(final_idxs)
+        print(frame_array.shape)
         final_frame_array = frame_array[final_idxs]
+        print(final_frame_array.shape)
         for frame in final_frame_array:
             hasFrame, imageBytes = cv2.imencode(".jpg", frame)
             if(hasFrame):
