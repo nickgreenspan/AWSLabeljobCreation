@@ -15,7 +15,7 @@ s3client = boto3.client('s3', region_name = 'us-east-1')
 s3 = boto3.resource('s3', region_name = 'us-east-1')
 
 RANDOM_SEED = 10
-PCA_DIM = 200
+PCA_DIM = 175
 
 def uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, dataset_name, job_name, labels, shortintruct, fullinstruct):
     #uploads sequence file   
@@ -102,7 +102,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
     print(start_frame, end_frame)
     relFrameCount = end_frame - start_frame
     print(frame_width, frame_height)
-    print(totFrameCount)
+    print(totFrameCount, flush=True)
     frame_freq = relFrameCount // numframes
     print(frame_freq)
     cap.set(1, start_frame)
@@ -138,7 +138,21 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
     
     #TODO: add fancy frame selection tools
     elif selection_mode == "motion_pca_cluster":
-        numinputframes = numframes * 10
+        #300 input frames too large (pca dim 200)
+        #240 is too large (pca dim 200)
+        #48000 too large
+        #210 input frames is ok (pca dim 200)
+        #total dims of 42000 is ok
+        #150 input frames is ok (pca dim 200)
+        #300 input frames * 150 = 45000  is too large
+        #300 * 145 = 43500 is too large
+        #300 * 140 = 42000 is also too large?
+        #240 * 170 = 40800 
+        frame_mult = 210 // numframes
+        #issue is actually in computing PCA
+        #240 times this video size (H * W * C) is too large
+        numinputframes = numframes * frame_mult
+        print(numinputframes, flush = True)
         #frame_freq *= 10 #for now we are computing motion energy across every frame in the video so this doesn't matter       
         motion_energy_values = []
         if start_frame != 0:
@@ -158,6 +172,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             me = np.mean(np.absolute(frame - prev_frame))
             motion_energy_values.append((frameId, me))
             prev_frame = frame
+        print("computed motion energy", flush=True)
         motion_energy_values.sort(key=lambda x:x[1])
         motion_energy_values = motion_energy_values[:numinputframes]
         #print(motion_energy_values)
@@ -175,12 +190,18 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             if frameId in top_me_frames.keys():
                 frame_array[frame_array_idx] = frame
                 frame_array_idx += 1
+        print("filled frame array", flush=True)
         pca_array = frame_array.reshape((numinputframes, -1))
         pca_components = min(pca_array.shape[0], pca_array.shape[1], PCA_DIM)
-        pca = PCA(n_components = pca_components) #check what SLEAP does, they do      
+        pca = PCA(n_components = pca_components) #check what SLEAP does, they do
+        print(pca_array.shape, flush = True)
         compressed_array = pca.fit_transform(pca_array)
+        print("computed PCA", flush=True)      
+        print(sum(pca.explained_variance_ratio_), flush = True)
+        print(compressed_array.shape)
         kmeans = KMeans(n_clusters = numframes, random_state = RANDOM_SEED)
         cluster_idxs = kmeans.fit_predict(compressed_array)
+        print("Ran K means", flush=True)      
         print(cluster_idxs)
         used_clusters = set()
         final_idxs = [] #indexs are of the frame array, not of the actual video
@@ -189,7 +210,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
                 final_idxs.append(frame_idx)
                 used_clusters.add(cluster_idx)
         
-        print(final_idxs)
+        print(final_idxs, flush=True)
         print(frame_array.shape)
         final_frame_array = frame_array[final_idxs]
         print(final_frame_array.shape)
@@ -208,7 +229,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
     sequence_1["frames"] = frames
     sequence_1["number-of-frames"] = f + 1
     uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, video_name, job_name, labels, shortintruct, fullinstruct)
-
+    #exit()
 
 
 
