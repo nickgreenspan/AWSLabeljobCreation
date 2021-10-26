@@ -6,9 +6,10 @@ import math
 from datetime import datetime
 import os
 import zipfile
-import numpy
+import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
+
 
 s3client = boto3.client('s3', region_name = 'us-east-1')
 s3 = boto3.resource('s3', region_name = 'us-east-1')
@@ -97,6 +98,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
     totFrameCount = cap.get(7)
     start_frame = int(totFrameCount * start_point)
     end_frame = int(totFrameCount * end_point)
+    print(start_frame, end_frame)
     relFrameCount = end_frame - start_frame
     print(frame_width, frame_height)
     print(totFrameCount)
@@ -144,6 +146,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         else:
             ret, prev_frame = cap.read()
             #cap.set(1, start_frame + 1)
+        print(prev_frame.shape)
         while(cap.isOpened()):
             frameId = cap.get(1) #current frame number  
             if frameId > end_frame:
@@ -156,9 +159,10 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             prev_frame = frame
         motion_energy_values.sort(key=lambda x:x[1])
         motion_energy_values = motion_energy_values[:numinputframes]
-        frame_array = np.empty(shape=(numinputframes, frame_width, frame_height))
+        #print(motion_energy_values)
+        frame_array = np.empty(shape=(numinputframes, int(frame_height), int(frame_width), 3))
         top_me_frames = dict(motion_energy_values)
-        cap.set(start_frame)
+        cap.set(1, start_frame)
         frame_array_idx = 0
         while(cap.isOpened()):
             frameId = cap.get(1) #current frame number  
@@ -170,9 +174,9 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             if frameId in top_me_frames.keys():
                 frame_array[frame_array_idx] = frame
                 frame_array_idx += 1
-        
+        pca_array = frame_array.reshape((numinputframes, -1))
         pca = PCA(n_components = 200) #check what SLEAP does, they do      
-        compressed_array = pca.fit_transform(frame_array)
+        compressed_array = pca.fit_transform(pca_array)
         kmeans = KMeans(n_clusters = numframes, random_state = RANDOM_SEED)
         cluster_idxs = kmeans.fit_predict(compressed_array)
         used_clusters = set()

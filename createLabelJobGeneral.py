@@ -93,7 +93,7 @@ labeluri = workteam['Workteam']['SubDomain']
 print("labeluri: " + labeluri)
 
 data_base = data_name.split('.', 1)[0] #gets the name of the zipfile without the extention
-s3.Bucket(input_data_bucket).download_file(data_path, data_name) #downloads zip file of folder of frames
+s3.Bucket(input_data_bucket).download_file(data_path, data_name) #downloads zip file of data
 unzippedfolder = zipfile.ZipFile(data_name, "r")
 
 if data_format == "frames":
@@ -166,7 +166,7 @@ for job_name, jobinfo in jobs_info.items():
                 preprocess_frames_job(unique_job_name, file_dict[datasetname], unzippedfolder, data_path, data_base, data_name, input_data_bucket, lab_group_name, labels, datasetname, shortinstruct, fullinstruct)
         else:
                 start_point = jobinfo["start_point_proportion"]
-                end_point = jobinfo["end_point_proportion”]
+                end_point = jobinfo["end_point_proportion"]
                 selection_mode = jobinfo["selection_mode"]
                 numframes = jobinfo["numframes2pick"]
                 video_format = jobinfo["format"]
