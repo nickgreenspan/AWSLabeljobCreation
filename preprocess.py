@@ -98,7 +98,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
     frameRate = cap.get(5)
     totFrameCount = cap.get(7)
     start_frame = int(totFrameCount * start_point)
-    end_frame = int(totFrameCount * end_point)
+    end_frame = int(totFrameCount * end_point) + 1
     print(start_frame, end_frame)
     relFrameCount = end_frame - start_frame
     print(frame_width, frame_height)
@@ -127,11 +127,11 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
                 continue
             hasFrame, imageBytes = cv2.imencode(".jpg", frame)
             if(hasFrame):
-                s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + video_name + '/frame_' + str(f) + '.jpg'), Body=imageBytes.tobytes())
+                s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + video_name + '/frame_' + str(int(frameId)) + '.jpg'), Body=imageBytes.tobytes())
                 frame_dict = {}
                 frame_dict["frame-no"] = f + 1
                 frame_dict["unix-timestamp"] = 2 #doesn't matter
-                frame_dict["frame"] = ("frame_" + str(frameId) + '.jpg')
+                frame_dict["frame"] = ("frame_" + str(int(frameId)) + '.jpg')
                 frames.append(frame_dict)
                 f += 1          
         cap.release()
@@ -142,14 +142,14 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         #210 input frames is ok 
         #frame size we have been using is 512 *  640 * 3 = 983,040
         frame_size = frame_height * frame_width * 3
-        final_array_size = frame_size * numframes
+        final_array_size = int(frame_size) * numframes
         frame_mult = 206438400 // final_array_size #could be more precise about the max memory capacity for the pca_array
         if frame_mult < 1:
             print("You are trying to select too many frames given your frame size")
             exit()
         #memory issue is in computing PCA
         #240 times this video size (H * W * C) is too large
-        numinputframes = numframes * frame_mult
+        numinputframes = int(numframes * frame_mult)
         print(numinputframes, flush = True)
         motion_energy_values = []
         if start_frame != 0:
@@ -172,7 +172,6 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         print("computed motion energy", flush=True)
         motion_energy_values.sort(key=lambda x:x[1])
         motion_energy_values = motion_energy_values[:numinputframes]
-        #print(motion_energy_values)
         frame_array = np.empty(shape=(numinputframes, int(frame_height), int(frame_width), 3))
         top_me_frames = dict(motion_energy_values)
         cap.set(1, start_frame)
@@ -215,14 +214,14 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         final_frame_idxs = [motion_energy_values[i][0] for i in final_idxs]
         final_frame_og_idxs = [frame_array_frame_idxs[idx] for idx in final_idxs]
         print(final_frame_array.shape)
-        for frame in final_frame_array:
+        for fin_idx, frame in enumerate(final_frame_array):
             hasFrame, imageBytes = cv2.imencode(".jpg", frame)
             if(hasFrame):
-                s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + video_name + '/frame_' + str(final_frame_og_idxs[fin_idx]) + '.jpg'), Body=imageBytes.tobytes())
+                s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + video_name + '/frame_' + str(int(final_frame_og_idxs[fin_idx])) + '.jpg'), Body=imageBytes.tobytes())
                 frame_dict = {}
                 frame_dict["frame-no"] = f + 1
                 frame_dict["unix-timestamp"] = 2 #doesn't matter
-                frame_dict["frame"] = ("frame_" + str(final_frame_og_idxs[fin_idx]) + '.jpg')
+                frame_dict["frame"] = ("frame_" + str(int(final_frame_og_idxs[fin_idx])) + '.jpg')
                 frames.append(frame_dict)
                 f += 1               
         cap.release()
