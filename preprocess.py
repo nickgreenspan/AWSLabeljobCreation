@@ -138,22 +138,19 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
     
     #TODO: add fancy frame selection tools
     elif selection_mode == "motion_pca_cluster":
-        #300 input frames too large (pca dim 200)
-        #240 is too large (pca dim 200)
-        #48000 too large
-        #210 input frames is ok (pca dim 200)
-        #total dims of 42000 is ok
-        #150 input frames is ok (pca dim 200)
-        #300 input frames * 150 = 45000  is too large
-        #300 * 145 = 43500 is too large
-        #300 * 140 = 42000 is also too large?
-        #240 * 170 = 40800 
-        frame_mult = 210 // numframes #take into account frame size, maybe downsample, but maybe ignore for now?
-        #issue is actually in computing PCA
+        #240 input frames is too large 
+        #210 input frames is ok 
+        #frame size we have been using is 512 *  640 * 3 = 983,040
+        frame_size = frame_height * frame_width * 3
+        final_array_size = frame_size * numframes
+        frame_mult = 206438400 // final_array_size #could be more precise about the max memory capacity for the pca_array
+        if frame_mult < 1:
+            print("You are trying to select too many frames given your frame size")
+            exit()
+        #memory issue is in computing PCA
         #240 times this video size (H * W * C) is too large
         numinputframes = numframes * frame_mult
         print(numinputframes, flush = True)
-        #frame_freq *= 10 #for now we are computing motion energy across every frame in the video so this doesn't matter       
         motion_energy_values = []
         if start_frame != 0:
             cap.set(1, start_frame - 1)
@@ -180,6 +177,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         top_me_frames = dict(motion_energy_values)
         cap.set(1, start_frame)
         frame_array_idx = 0
+        frame_array_frame_idxs = {}
         while(cap.isOpened()):
             frameId = cap.get(1) #current frame number  
             if frameId > end_frame:
@@ -189,6 +187,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
                 break
             if frameId in top_me_frames.keys():
                 frame_array[frame_array_idx] = frame
+                frame_array_frame_idxs[frame_array_idx] = frameId
                 frame_array_idx += 1
         print("filled frame array", flush=True)
         pca_array = frame_array.reshape((numinputframes, -1))
@@ -214,15 +213,16 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         print(frame_array.shape)
         final_frame_array = frame_array[final_idxs]
         final_frame_idxs = [motion_energy_values[i][0] for i in final_idxs]
+        final_frame_og_idxs = [frame_array_frame_idxs[idx] for idx in final_idxs]
         print(final_frame_array.shape)
         for frame in final_frame_array:
             hasFrame, imageBytes = cv2.imencode(".jpg", frame)
             if(hasFrame):
-                s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + video_name + '/frame_' + str(f) + '.jpg'), Body=imageBytes.tobytes())
+                s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + video_name + '/frame_' + str(final_frame_og_idxs[fin_idx]) + '.jpg'), Body=imageBytes.tobytes())
                 frame_dict = {}
                 frame_dict["frame-no"] = f + 1
                 frame_dict["unix-timestamp"] = 2 #doesn't matter
-                frame_dict["frame"] = ("frame_" + str(f) + '.jpg')
+                frame_dict["frame"] = ("frame_" + str(final_frame_og_idxs[fin_idx]) + '.jpg')
                 frames.append(frame_dict)
                 f += 1               
         cap.release()
