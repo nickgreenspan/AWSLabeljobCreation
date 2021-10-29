@@ -131,7 +131,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
                 frame_dict = {}
                 frame_dict["frame-no"] = f + 1
                 frame_dict["unix-timestamp"] = 2 #doesn't matter
-                frame_dict["frame"] = ("frame_" + str(f) + '.jpg')
+                frame_dict["frame"] = ("frame_" + str(frameId) + '.jpg')
                 frames.append(frame_dict)
                 f += 1          
         cap.release()
@@ -148,7 +148,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         #300 * 145 = 43500 is too large
         #300 * 140 = 42000 is also too large?
         #240 * 170 = 40800 
-        frame_mult = 210 // numframes
+        frame_mult = 210 // numframes #take into account frame size, maybe downsample, but maybe ignore for now?
         #issue is actually in computing PCA
         #240 times this video size (H * W * C) is too large
         numinputframes = numframes * frame_mult
@@ -213,6 +213,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         print(final_idxs, flush=True)
         print(frame_array.shape)
         final_frame_array = frame_array[final_idxs]
+        final_frame_idxs = [motion_energy_values[i][0] for i in final_idxs]
         print(final_frame_array.shape)
         for frame in final_frame_array:
             hasFrame, imageBytes = cv2.imencode(".jpg", frame)
