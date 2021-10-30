@@ -16,6 +16,7 @@ s3 = boto3.resource('s3', region_name = 'us-east-1')
 
 RANDOM_SEED = 10
 PCA_DIM = 175
+FRAME_DOWNSAMPLE_FACTOR = 2
 
 def uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, dataset_name, job_name, labels, shortintruct, fullinstruct):
     #uploads sequence file   
@@ -141,23 +142,21 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         #240 input frames is too large 
         #210 input frames is ok 
         #frame size we have been using is 512 *  640 * 3 = 983,040
-        frame_size = frame_height * frame_width * 3
-        final_array_size = int(frame_size) * numframes
-        frame_mult = 206438400 // final_array_size #could be more precise about the max memory capacity for the pca_array
-        if frame_mult < 1:
+        downsampled_height = int(frame_height)// FRAME_DOWNSAMPLE_FACTOR
+        downsampled_width = int(frame_width)// FRAME_DOWNSAMPLE_FACTOR
+        pca_frame_size = downsampled_height * downsampled_width * 3
+        max_frame_capacity = 206438400 // pca_frame_size #could be more precise about the max memory capacity for the pca_array
+        print(max_frame_capacity, flush = True)
+        if max_frame_capacity < numframes:
             print("You are trying to select too many frames given your frame size")
-            exit()
-        #memory issue is in computing PCA
-        #240 times this video size (H * W * C) is too large
-        numinputframes = int(numframes * frame_mult)
-        print(numinputframes, flush = True)
+            print("Selecting %d, which is the max number of frames able to be processed at once" % max_frame_capacity)
+            numframes = max_frame_capacity  
         motion_energy_values = []
         if start_frame != 0:
             cap.set(1, start_frame - 1)
             ret, prev_frame = cap.read()
         else:
             ret, prev_frame = cap.read()
-            #cap.set(1, start_frame + 1)
         print(prev_frame.shape)
         while(cap.isOpened()):
             frameId = cap.get(1) #current frame number  
@@ -171,8 +170,9 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             prev_frame = frame
         print("computed motion energy", flush=True)
         motion_energy_values.sort(key=lambda x:x[1])
-        motion_energy_values = motion_energy_values[:numinputframes]
-        frame_array = np.empty(shape=(numinputframes, int(frame_height), int(frame_width), 3))
+        motion_energy_values = motion_energy_values[:max_frame_capacity]
+        frame_array = np.empty(shape=(max_frame_capacity, int(frame_height), int(frame_width), 3))
+        pca_array = np.empty(shape = (max_frame_capacity, downsampled_height, downsampled_width, 3))
         top_me_frames = dict(motion_energy_values)
         cap.set(1, start_frame)
         frame_array_idx = 0
@@ -187,9 +187,11 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             if frameId in top_me_frames.keys():
                 frame_array[frame_array_idx] = frame
                 frame_array_frame_idxs[frame_array_idx] = frameId
+                downsampled_frame = cv2.resize(frame, (downsampled_width, downsampled_height))
+                pca_array[frame_array_idx] = downsampled_frame
                 frame_array_idx += 1
         print("filled frame array", flush=True)
-        pca_array = frame_array.reshape((numinputframes, -1))
+        pca_array = pca_array.reshape((max_frame_capacity, -1))
         pca_components = min(pca_array.shape[0], pca_array.shape[1], PCA_DIM)
         pca = PCA(n_components = pca_components) #check what SLEAP does, they do
         print(pca_array.shape, flush = True)
