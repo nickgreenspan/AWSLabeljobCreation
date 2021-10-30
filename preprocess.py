@@ -17,6 +17,7 @@ s3 = boto3.resource('s3', region_name = 'us-east-1')
 RANDOM_SEED = 10
 PCA_DIM = 175
 FRAME_DOWNSAMPLE_FACTOR = 2
+MAX_ARRAY_MEMORY = 206438400 #could be more precise, this is a safe number
 
 def uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, dataset_name, job_name, labels, shortintruct, fullinstruct):
     #uploads sequence file   
@@ -96,11 +97,17 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
     cap = cv2.VideoCapture(data_base + '/' + video_name + video_format)
     frame_width = cap.get(3)
     frame_height = cap.get(4)
+    frame_size = int(frame_width) * int(frame_height) * 3
+    max_frame_capacity = MAX_ARRAY_MEMORY // frame_size
+    print("max_frame_capactity: " + str(max_frame_capacity), flush = True)
+    if max_frame_capacity < numframes:
+        print("You are trying to select too many frames given your frame size")
+        print("Selecting %d, which is the max number of frames able to be processed at once" % max_frame_capacity)
+        numframes = max_frame_capacity  
     frameRate = cap.get(5)
     totFrameCount = cap.get(7)
     start_frame = int(totFrameCount * start_point)
     end_frame = int(totFrameCount * end_point) + 1
-    print(start_frame, end_frame)
     relFrameCount = end_frame - start_frame
     print(frame_width, frame_height)
     print(totFrameCount, flush=True)
@@ -144,13 +151,9 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         #frame size we have been using is 512 *  640 * 3 = 983,040
         downsampled_height = int(frame_height)// FRAME_DOWNSAMPLE_FACTOR
         downsampled_width = int(frame_width)// FRAME_DOWNSAMPLE_FACTOR
-        pca_frame_size = downsampled_height * downsampled_width * 3
-        max_frame_capacity = 206438400 // pca_frame_size #could be more precise about the max memory capacity for the pca_array
-        print(max_frame_capacity, flush = True)
-        if max_frame_capacity < numframes:
-            print("You are trying to select too many frames given your frame size")
-            print("Selecting %d, which is the max number of frames able to be processed at once" % max_frame_capacity)
-            numframes = max_frame_capacity  
+        pca_frame_size = downsampled_width * downsampled_height * 3
+        max_downsampled_frame_capacity = MAX_ARRAY_MEMORY // pca_frame_size 
+        print("max_downsampled_frame_capactity: " + str(max_downsampled_frame_capacity), flush = True)
         motion_energy_values = []
         if start_frame != 0:
             cap.set(1, start_frame - 1)
@@ -170,9 +173,9 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             prev_frame = frame
         print("computed motion energy", flush=True)
         motion_energy_values.sort(key=lambda x:x[1])
-        motion_energy_values = motion_energy_values[:max_frame_capacity]
-        frame_array = np.empty(shape=(max_frame_capacity, int(frame_height), int(frame_width), 3))
-        pca_array = np.empty(shape = (max_frame_capacity, downsampled_height, downsampled_width, 3))
+        motion_energy_values = motion_energy_values[:max_downsampled_frame_capacity]
+        #frame_array = np.empty(shape=(max_downsampled_frame_capacity, int(frame_height), int(frame_width), 3))
+        pca_array = np.empty(shape = (max_downsampled_frame_capacity, downsampled_height, downsampled_width, 3))
         top_me_frames = dict(motion_energy_values)
         cap.set(1, start_frame)
         frame_array_idx = 0
@@ -185,19 +188,19 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             if (ret != True):
                 break
             if frameId in top_me_frames.keys():
-                frame_array[frame_array_idx] = frame
+                #frame_array[frame_array_idx] = frame
                 frame_array_frame_idxs[frame_array_idx] = frameId
                 downsampled_frame = cv2.resize(frame, (downsampled_width, downsampled_height))
                 pca_array[frame_array_idx] = downsampled_frame
                 frame_array_idx += 1
-        print("filled frame array", flush=True)
-        pca_array = pca_array.reshape((max_frame_capacity, -1))
+        print("filled pca frame array", flush=True)
+        pca_array = pca_array.reshape((max_downsampled_frame_capacity, -1))
         pca_components = min(pca_array.shape[0], pca_array.shape[1], PCA_DIM)
         pca = PCA(n_components = pca_components) #check what SLEAP does, they do
         print(pca_array.shape, flush = True)
         compressed_array = pca.fit_transform(pca_array)
         print("computed PCA", flush=True)      
-        print(sum(pca.explained_variance_ratio_), flush = True)
+        print("Total explained variance: " + str(sum(pca.explained_variance_ratio_)), flush = True)
         print(compressed_array.shape)
         kmeans = KMeans(n_clusters = numframes, random_state = RANDOM_SEED)
         cluster_idxs = kmeans.fit_predict(compressed_array)
@@ -208,30 +211,31 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         for frame_idx, cluster_idx in enumerate(cluster_idxs):
             if cluster_idx not in used_clusters:
                 final_idxs.append(frame_idx)
-                used_clusters.add(cluster_idx)
-        
-        print(final_idxs, flush=True)
-        print(frame_array.shape)
-        final_frame_array = frame_array[final_idxs]
-        final_frame_idxs = [motion_energy_values[i][0] for i in final_idxs]
+                used_clusters.add(cluster_idx)    
+        #final_frame_array = frame_array[final_idxs]
+        #final_frame_idxs = [motion_energy_values[i][0] for i in final_idxs]
         final_frame_og_idxs = [frame_array_frame_idxs[idx] for idx in final_idxs]
-        print(final_frame_array.shape)
-        for fin_idx, frame in enumerate(final_frame_array):
+        cap.set(1, start_frame)
+        final_frame_og_idxs.sort()
+        for frameId in final_frame_og_idxs:
+            cap.set(1, frameId)
+            ret, frame = cap.read()
+            if (ret != True):
+                break
             hasFrame, imageBytes = cv2.imencode(".jpg", frame)
             if(hasFrame):
-                s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + video_name + '/frame_' + str(int(final_frame_og_idxs[fin_idx])) + '.jpg'), Body=imageBytes.tobytes())
+                s3client.put_object(Bucket= input_data_bucket, Key=(lab_group_name + '/inputs/' + job_name + "/" + video_name + '/frame_' + str(int(frameId)) + '.jpg'), Body=imageBytes.tobytes())
                 frame_dict = {}
                 frame_dict["frame-no"] = f + 1
                 frame_dict["unix-timestamp"] = 2 #doesn't matter
-                frame_dict["frame"] = ("frame_" + str(int(final_frame_og_idxs[fin_idx])) + '.jpg')
+                frame_dict["frame"] = ("frame_" + str(int(frameId)) + '.jpg')
                 frames.append(frame_dict)
-                f += 1               
-        cap.release()
+                f += 1  
+        cap.release()             
     os.remove(data_base + '/' + video_name + video_format)
     sequence_1["frames"] = frames
     sequence_1["number-of-frames"] = f + 1
     uploadInfo(input_data_bucket, lab_group_name, sequence_1, data_base, data_name, video_name, job_name, labels, shortintruct, fullinstruct)
-    #exit()
 
 
 
