@@ -173,9 +173,12 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             prev_frame = frame
         print("computed motion energy", flush=True)
         motion_energy_values.sort(key=lambda x:x[1])
+        print("bottom motion energy frames:")
+        print(motion_energy_values[:10])
         motion_energy_values.reverse()
         motion_energy_values = motion_energy_values[:max_downsampled_frame_capacity]
-        print(motion_energy_values[:10], flush=True)
+        print("top motion energy frames:")
+        print(motion_energy_values[:10])
         pca_array = np.empty(shape = (max_downsampled_frame_capacity, downsampled_height, downsampled_width, 3))
         top_me_frames = dict(motion_energy_values)
         cap.set(1, start_frame)
@@ -206,10 +209,10 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
         kmeans = KMeans(n_clusters = numframes, random_state = RANDOM_SEED)
         cluster_idxs = kmeans.fit_predict(compressed_array)
         print("Ran K means", flush=True)      
-        print(cluster_idxs)
+        print(len(cluster_idxs))
         used_clusters = set()
         final_idxs = [] #indexs are of the frame array, not of the actual video
-        for frame_idx, cluster_idx in enumerate(cluster_idxs):
+        for frame_idx, cluster_idx in enumerate(cluster_idxs): #we are picking the highest ME frames amoung
             if cluster_idx not in used_clusters:
                 final_idxs.append(frame_idx)
                 used_clusters.add(cluster_idx)    
