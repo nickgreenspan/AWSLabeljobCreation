@@ -107,7 +107,7 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
     frameRate = cap.get(5)
     totFrameCount = cap.get(7)
     start_frame = int(totFrameCount * start_point)
-    end_frame = int(totFrameCount * end_point) + 1
+    end_frame = int(totFrameCount * end_point) - 1
     relFrameCount = end_frame - start_frame
     print(frame_width, frame_height)
     print(totFrameCount, flush=True)
@@ -173,8 +173,9 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             prev_frame = frame
         print("computed motion energy", flush=True)
         motion_energy_values.sort(key=lambda x:x[1])
+        motion_energy_values.reverse()
         motion_energy_values = motion_energy_values[:max_downsampled_frame_capacity]
-        #frame_array = np.empty(shape=(max_downsampled_frame_capacity, int(frame_height), int(frame_width), 3))
+        print(motion_energy_values[:10], flush=True)
         pca_array = np.empty(shape = (max_downsampled_frame_capacity, downsampled_height, downsampled_width, 3))
         top_me_frames = dict(motion_energy_values)
         cap.set(1, start_frame)
@@ -188,12 +189,12 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             if (ret != True):
                 break
             if frameId in top_me_frames.keys():
-                #frame_array[frame_array_idx] = frame
                 frame_array_frame_idxs[frame_array_idx] = frameId
                 downsampled_frame = cv2.resize(frame, (downsampled_width, downsampled_height))
                 pca_array[frame_array_idx] = downsampled_frame
                 frame_array_idx += 1
         print("filled pca frame array", flush=True)
+        print(len(motion_energy_values), max_downsampled_frame_capacity, frame_array_idx, len(frame_array_frame_idxs))
         pca_array = pca_array.reshape((max_downsampled_frame_capacity, -1))
         pca_components = min(pca_array.shape[0], pca_array.shape[1], PCA_DIM)
         pca = PCA(n_components = pca_components) #check what SLEAP does, they do
@@ -212,12 +213,11 @@ def preprocess_video_job(job_name, video_name, video_format, unzippedfolder, dat
             if cluster_idx not in used_clusters:
                 final_idxs.append(frame_idx)
                 used_clusters.add(cluster_idx)    
-        #final_frame_array = frame_array[final_idxs]
-        #final_frame_idxs = [motion_energy_values[i][0] for i in final_idxs]
         final_frame_og_idxs = [frame_array_frame_idxs[idx] for idx in final_idxs]
         cap.set(1, start_frame)
         final_frame_og_idxs.sort()
         for frameId in final_frame_og_idxs:
+            #assert(frameId in top_me_frames.keys()) #just for testing
             cap.set(1, frameId)
             ret, frame = cap.read()
             if (ret != True):
