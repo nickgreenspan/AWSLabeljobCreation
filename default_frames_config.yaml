@@ -1,0 +1,15 @@
+dataformat: frames
+jobs_info:
+  examplejob1:
+    datasetname: reachingmouse1 #should correspond with subfolder name 
+    labeled_datasetname: labeledreachingmouse1
+  examplejob2:
+    datasetname: reachingmouse2
+    labeled_datasetname: labeledreachingmouse2
+
+bodyparts: [Hand, Finger1, Tongue, Joystick1, Joystick2]
+skeleton: 
+labelers: [[labeler1name, labeler1@columbia.edu], [labeler2name, labeler2@columbia.edu]]
+fullinstruct: please complete the labeling job
+shortinstruct: please label
+prevneurocaasjobID: None
